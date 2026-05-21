@@ -16,6 +16,22 @@ setInterval(() => {
     numberOfRequestsForUser = {};
 }, 1000)
 
+app.use((req, res, next)=>{
+  const userid = req.headers["user-id"];
+  if(!numberOfRequestsForUser[userid]){
+    numberOfRequestsForUser[userid] = 0;
+  }
+
+  numberOfRequestsForUser[userid]++;
+
+  if(numberOfRequestsForUser[userid] > 5){
+    return res.status(404).json({
+      message: "You are blocked",
+    })
+  }
+  next();
+})
+
 app.get('/user', function(req, res) {
   res.status(200).json({ name: 'john' });
 });
@@ -23,5 +39,7 @@ app.get('/user', function(req, res) {
 app.post('/user', function(req, res) {
   res.status(200).json({ msg: 'created dummy user' });
 });
+
+app.listen(3000);
 
 module.exports = app;
