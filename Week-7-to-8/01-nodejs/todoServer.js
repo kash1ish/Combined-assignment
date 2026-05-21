@@ -39,11 +39,121 @@
 
   Testing the server - run `npm run test-todoServer` command in terminal
  */
-  const express = require('express');
-  const bodyParser = require('body-parser');
-  
+  const express = require("express");
+  const fs = require("fs");
+
   const app = express();
   
-  app.use(bodyParser.json());
+  app.use(express.json());
+
+  const fileData = fs.readFileSync("todos.json", "utf-8");
+  const todos = JSON.parse(fileData)
+
+  app.get("/todos", (req, res)=>{
+    try{
+      res.status(200).json(todos);
+    }catch(error){
+      res.status(500).json({
+        message: error.message
+      });
+    }
+  })
+
+  app.get("/todos/:id", (req, res)=>{
+    try{
+      const id = req.params.id;
+      const todo = todos.find((todo) => todo.id == id);
+      
+      if(!todo){
+        return res.status(404).json({
+          message: "Todo not Found"
+        })
+      }
+      else{
+        res.status(200).json(todo);
+      }
+    }catch(error){
+      res.status(500).json({
+        message: error.message,
+      })
+    }
+  })
+
+  app.post("/todos", (req, res)=>{
+    try{
+    const bodyData = req.body;
+    
+    const newTodo = {
+      id: todos.length > 0 ? todos[todos.length - 1].id + 1 : 1,
+      title: bodyData.title,
+      completed: bodyData.completed,
+      description: bodyData.description
+    }
+
+    todos.push(newTodo);
+    fs.writeFileSync("todos.json", JSON.stringify(todos, null, 2));
+
+    res.status(201).json({id: newTodo.id});
+    }catch(error){
+      return res.status(500).json({
+        message: error.message,
+      })
+    }
+  })
+
+  app.put("/todos/:id", (req, res)=>{
+    try{
+      const id = Number(req.params.id);
+      const todo = todos.find((todo) => todo.id == id);
   
+      const updatedTodos = todos.map((todo) => {
+        if(todo.id === id){
+          return {
+            ...todo,
+            ...req.body,
+          };
+        }
+        return todo;
+      })
+
+      if(!todo){
+        return res.status(404).json({message: "Todo not found"})
+      }
+
+      else{
+        fs.writeFileSync("todos.json", JSON.stringify(updatedTodos, null,2));
+        res.status(200).json({message: "Todo Updated Successfully"})
+      }
+    }catch(error){
+      return res.status(500).json({
+        message: error.message
+      })
+    }
+  })
+
+  app.delete("/todos/:id",(req, res)=>{
+    try{
+      const id = req.params.id;
+      const todo = todos.find((todo)=> todo.id == id)
+      const result = todos.filter((todo) => todo.id != id);
+
+      if(!todo){
+        return res.status(404).json({
+          message: "Not found"
+        })
+      }
+      else{
+        fs.writeFileSync("todos.json", JSON.stringify(result, null, 2));
+      res.status(200).json({
+        message: "Found and deleted"
+      });
+      }
+    }catch(error){
+      return res.status(500).json({
+        message: error.message
+      })
+    }
+  })
+  
+  //app.listen(3000);
   module.exports = app;
