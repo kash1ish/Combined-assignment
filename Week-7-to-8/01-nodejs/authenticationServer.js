@@ -27,80 +27,108 @@
   - For any other route not defined in the server return 404
 
   Testing the server - run `npm run test-authenticationServer` command in terminal
- */
+*/
 
-  const express = require("express")
-  const PORT = 3000;
-  const app = express();
-  // write your logic here, DONT WRITE app.listen(3000) when you're running tests, the tests will automatically start the server
-  
-  var users = [];
-  
-  app.use(express.json());
-  app.post("/signup", (req, res) => {
-    var user = req.body;
-    let userAlreadyExists = false;
-    for (var i = 0; i<users.length; i++) {
-      if (users[i].email === user.email) {
-          userAlreadyExists = true;
-          break;
+const express = require("express");
+const app = express();
+
+app.use(express.json());
+
+const users = [];
+
+app.post("/signup", (req,res)=>{
+  try{
+    const { email, username, password, firstName, lastName } = req.body;
+    
+    const existingUser = users.find((user)=> user.username == username);
+    if(existingUser){
+      return res.status(400).json({
+        message: "Username already exists",
+      })
+    }
+    const newUser = {
+      id: Date.now(),
+      email,
+      username, 
+      password,
+      firstName, 
+      lastName
+    }
+    users.push(newUser);
+    console.log(users);
+    res.status(201).send("Signup successful");
+  }catch(error){
+    res.status(500).json({
+      message: error.message,
+    })
+  }
+})
+
+app.post("/login", (req, res)=>{
+  try{
+    const{ username, password } = req.body;
+    
+    const user = users.find(user => user.username === username);
+
+    if(!user){
+      return res.status(401).send("User doesn't exist");
+    }
+
+    const {email, firstName, lastName, id} = user;
+
+    if(user.password !== password){
+      return res.status(401).json("Invalid Credentials");
+    }
+    
+    if(user){
+      const token = Math.floor(Math.random() * 1000000000);
+      return res.status(200).json({token, email, firstName, lastName, id})
+    }
+  }catch(error){
+    return res.status(500).json({
+      message: error.message,
+    })
+  }
+})
+
+app.get("/data", (req, res)=>{
+  try{
+    const email = req.headers.email;
+    const password = req.headers.password;
+
+    if(!email || !password){
+      return res.status(401).send("Unauthorized");
+    }
+    const user = users.find((user)=> {
+      return user.email == email && user.password == password
+    });
+
+     if(!user){
+      return res.status(401).send("Unauthorized");
+    }
+
+    const allUsers = users.map( user => {
+      return {
+        id: user.id,
+        email:user.email,
+        firstName: user.firstName, 
+        lastName: user.lastName,
       }
-    }
-    if (userAlreadyExists) {
-      res.sendStatus(400);
-    } else {
-      users.push(user);
-      res.status(201).send("Signup successful");
-    }
-  });
-  
-  app.post("/login", (req, res) => {
-    var user = req.body;
-    let userFound = null;
-    for (var i = 0; i<users.length; i++) {
-      if (users[i].email === user.email && users[i].password === user.password) {
-          userFound = users[i];
-          break;
-      }
-    }
-  
-    if (userFound) {
-      res.json({
-          firstName: userFound.firstName,
-          lastName: userFound.lastName,
-          email: userFound.email
-      });
-    } else {
-      res.sendStatus(401);
-    }
-  });
-  
-  app.get("/data", (req, res) => {
-    var email = req.headers.email;
-    var password = req.headers.password;
-    let userFound = false;
-    for (var i = 0; i<users.length; i++) {
-      if (users[i].email === email && users[i].password === password) {
-          userFound = true;
-          break;
-      }
-    }
-  
-    if (userFound) {
-      let usersToReturn = [];
-      for (let i = 0; i<users.length; i++) {
-          usersToReturn.push({
-              firstName: users[i].firstName,
-              lastName: users[i].lastName,
-              email: users[i].email
-          });
-      }
-      res.json({
-          users
-      });
-    } else {
-      res.sendStatus(401);
-    }
-  });
-  
-  module.exports = app;
+    })
+
+    res.status(200).json({
+      users: allUsers,
+    });
+  }catch(error){
+    return res.status(500).json({
+      message: error.message,
+    })
+  }
+})
+
+app.use((req, res) => {
+  res.status(404).send("Route not found");
+});
+
+//app.listen(3000);
+module.exports = app;
